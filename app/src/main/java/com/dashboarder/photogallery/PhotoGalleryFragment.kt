@@ -109,7 +109,6 @@ class PhotoGalleryFragment : Fragment() {
                 if (galleryItem != null) {
                     thumbnailDownloader.queueThumbnail(holder, galleryItem.url)
                 }
-                //galleryItem?.url?.let { holder.bindDrawable(placeholder) }
             }
 
     }

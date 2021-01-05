@@ -6,13 +6,16 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.util.Log
+import android.util.LruCache
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.log
 
 private const val TAG = "ThumbnailDownloader"
 private const val MESSAGE_DOWNLOAD = 0
+private const val MAX_CACHE_SIZE = 32 * 1024 * 1024
 
 class ThumbnailDownloader<in T>(private val responseHandler: Handler,
                                 private val onThumbnailDownloaded: (T, Bitmap) -> Unit) :
@@ -46,6 +49,7 @@ class ThumbnailDownloader<in T>(private val responseHandler: Handler,
     private lateinit var requestHandler: Handler
     private val requestMap = ConcurrentHashMap<T, String>()
     private val flickrFetchr = FlickrFetchr()
+    private val lruCache = LruCache<String, Bitmap>(MAX_CACHE_SIZE)
 
     override fun quit(): Boolean {
         hasQuit = true
@@ -78,7 +82,9 @@ class ThumbnailDownloader<in T>(private val responseHandler: Handler,
 
     private fun handleRequest(target: T) {
         val url = requestMap[target] ?: return
-        val bitmap = flickrFetchr.fetchPhoto(url) ?: return
+        var bitmap = lruCache.get(url) ?: flickrFetchr.fetchPhoto(url) ?: return
+
+        lruCache.put(url, bitmap)
 
         responseHandler.post(Runnable {
             if(requestMap[target] != url || hasQuit) {
