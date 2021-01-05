@@ -1,10 +1,16 @@
 package com.dashboarder.photogallery
 
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Handler
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
@@ -17,17 +23,27 @@ private const val TAG = "PhotoGalleryFragment"
 
 class PhotoGalleryFragment : Fragment() {
     private lateinit var photoGalleryViewModel: PhotoGalleryViewModel
-    private lateinit var photoAdapter: PhotoAdapter
     private lateinit var photoRecyclerView: RecyclerView
+    private lateinit var thumbnailDownloader: ThumbnailDownloader<PhotoHolder>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        retainInstance = true
         photoGalleryViewModel = ViewModelProviders.of(this).get(PhotoGalleryViewModel::class.java)
+
+        val responseHandler = Handler()
+        thumbnailDownloader = ThumbnailDownloader(responseHandler) { photoHolder, bitmap ->
+            val drawable = BitmapDrawable(resources, bitmap)
+            photoHolder.bindDrawable(drawable)
+        }
+        lifecycle.addObserver(thumbnailDownloader.fragmentLifecycleObserver)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         super.onCreateView(inflater, container, savedInstanceState)
+
+        viewLifecycleOwner.lifecycle.addObserver(thumbnailDownloader.viewLifecycleObserver)
 
         val view = inflater.inflate(R.layout.fragment_photo_gallery, container, false)
         photoRecyclerView = view.findViewById(R.id.photo_recycler_view)
@@ -50,13 +66,25 @@ class PhotoGalleryFragment : Fragment() {
         )
     }
 
-    private class PhotoHolder(itemTextView: TextView)
-        : RecyclerView.ViewHolder(itemTextView) {
+    override fun onDestroyView() {
+        super.onDestroyView()
 
-        val bindTitle: (CharSequence) -> Unit = itemTextView::setText
+        viewLifecycleOwner.lifecycle.removeObserver(thumbnailDownloader.viewLifecycleObserver)
     }
 
-    private class PhotoAdapter :
+    override fun onDestroy() {
+        super.onDestroy()
+
+        lifecycle.removeObserver(thumbnailDownloader.fragmentLifecycleObserver)
+    }
+
+    private class PhotoHolder(itemImageView: ImageView)
+        : RecyclerView.ViewHolder(itemImageView) {
+
+        val bindDrawable: (Drawable) -> Unit = itemImageView::setImageDrawable
+    }
+
+    private inner class PhotoAdapter :
         PagedListAdapter<GalleryItem, PhotoHolder>(object : DiffUtil.ItemCallback<GalleryItem>() {
 
             override fun areItemsTheSame(oldItem: GalleryItem, newItem: GalleryItem): Boolean =
@@ -69,13 +97,19 @@ class PhotoGalleryFragment : Fragment() {
         ) {
 
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoHolder {
-                val textView = TextView(parent.context)
-                return PhotoHolder(textView)
+                val view = layoutInflater.inflate(R.layout.list_item_gallery, parent, false) as ImageView
+                return PhotoHolder(view)
             }
 
             override fun onBindViewHolder(holder: PhotoHolder, position: Int) {
                 val galleryItem = getItem(position)
-                galleryItem?.title?.let { holder.bindTitle(it) }
+                val placeholder: Drawable = ContextCompat.getDrawable(requireContext(), R.drawable.bill_up_close) ?: ColorDrawable()
+                holder.bindDrawable(placeholder)
+
+                if (galleryItem != null) {
+                    thumbnailDownloader.queueThumbnail(holder, galleryItem.url)
+                }
+                //galleryItem?.url?.let { holder.bindDrawable(placeholder) }
             }
 
     }

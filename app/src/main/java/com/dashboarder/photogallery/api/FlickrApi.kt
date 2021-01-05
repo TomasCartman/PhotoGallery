@@ -1,10 +1,12 @@
 package com.dashboarder.photogallery.api
 
+import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface FlickrApi {
 
@@ -13,13 +15,6 @@ interface FlickrApi {
         "&nojsoncallback=1" + "&extras=url_s")
     fun fetchPhotos(@Query("per_page") perPage: Int, @Query("page") pageNum: Int): Call<FlickrResponse>
 
-    /*
-    companion object {
-        fun newInstance(): FlickrApi {
-            val retrofit: Retrofit = Retrofit.Builder().baseUrl("https://api.flickr.com/")
-                    .addConverterFactory(GsonConverterFactory.create()).build()
-            return retrofit.create(FlickrApi::class.java)
-        }
-    }
-     */
+    @GET
+    fun fetchUrlBytes(@Url url: String): Call<ResponseBody>
 }
