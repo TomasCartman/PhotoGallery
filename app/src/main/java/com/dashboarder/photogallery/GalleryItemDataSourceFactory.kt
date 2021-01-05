@@ -9,9 +9,7 @@ class GalleryItemDataSourceFactory() : DataSource.Factory<Int, GalleryItem>() {
 
     override fun create(): DataSource<Int, GalleryItem> {
         val latestSource = GalleryItemDataSource()
-        Log.d("LatestSource", "$latestSource")
         sourceLiveData.postValue(latestSource)
-        Log.d("SourceLiveData", "${sourceLiveData}")
         return latestSource
     }
 }

@@ -12,19 +12,16 @@ private const val TAG = "GalleryItemDataSource"
 
 class GalleryItemDataSource() : PageKeyedDataSource<Int, GalleryItem>() {
     val flickrFetchr = FlickrFetchr()
-    val api = flickrFetchr.flickrApi
     var retry: (() -> Any)? = null
-    val network = MutableLiveData<NetworkState>()
-    val initial = MutableLiveData<NetworkState>()
+    private val api = flickrFetchr.flickrApi
+    private val network = MutableLiveData<NetworkState>()
+    private val initial = MutableLiveData<NetworkState>()
     private val apiService = ApiService(api)
     private val retryExecutor = Executor {  }
 
     override fun loadInitial(params: LoadInitialParams<Int>, callback: LoadInitialCallback<Int, GalleryItem>) {
         val currentPage = 1
         val nextPage = currentPage + 1
-
-        val testingThing = params.requestedLoadSize
-        Log.d(TAG, "$testingThing")
 
         apiService.fetchPhotosSync( page = currentPage, perPage = params.requestedLoadSize,
             onPrepared = {
@@ -51,7 +48,6 @@ class GalleryItemDataSource() : PageKeyedDataSource<Int, GalleryItem>() {
     ) {
         val currentPage = params.key
         val nextPage = currentPage + 1
-        Log.d("currentpage", "$currentPage")
 
         apiService.fetchPhotosAsync(page = currentPage, perPage = params.requestedLoadSize,
             onPrepared = {
@@ -70,7 +66,6 @@ class GalleryItemDataSource() : PageKeyedDataSource<Int, GalleryItem>() {
                 retry = { loadAfter(params, callback) }
                 postAfterState(NetworkState.error(it))
             })
-
     }
 
     override fun loadBefore(
