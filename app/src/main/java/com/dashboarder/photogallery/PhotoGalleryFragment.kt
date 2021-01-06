@@ -5,15 +5,15 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Handler
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.util.Log
+import android.view.*
 import android.widget.ImageView
-import android.widget.TextView
+import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.paging.PagedList
 import androidx.paging.PagedListAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
@@ -30,6 +30,7 @@ class PhotoGalleryFragment : Fragment() {
         super.onCreate(savedInstanceState)
 
         retainInstance = true
+        setHasOptionsMenu(true)
         photoGalleryViewModel = ViewModelProviders.of(this).get(PhotoGalleryViewModel::class.java)
 
         val responseHandler = Handler()
@@ -38,6 +39,32 @@ class PhotoGalleryFragment : Fragment() {
             photoHolder.bindDrawable(drawable)
         }
         lifecycle.addObserver(thumbnailDownloader.fragmentLifecycleObserver)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+
+        inflater.inflate(R.menu.fragment_photo_gallery, menu)
+
+        val searchItem: MenuItem = menu.findItem(R.id.menu_item_search)
+        val searchView = searchItem.actionView as SearchView
+
+        searchView.apply {
+            setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?): Boolean {
+                    Log.d(TAG, "QueryTextSubmit: $query")
+                    if (query != null) {
+                        photoGalleryViewModel.fetchPhotos(query)
+                    }
+                    return true
+                }
+
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    Log.d(TAG, "QueryTextChange: $newText")
+                    return false
+                }
+            })
+        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -57,12 +84,22 @@ class PhotoGalleryFragment : Fragment() {
 
         val mAdapter = PhotoAdapter()
 
+        /*
         photoGalleryViewModel.galleryItemList.observe(
             viewLifecycleOwner,
             Observer {
                 mAdapter?.submitList(it)
                 photoRecyclerView.adapter = mAdapter
             }
+        )
+
+         */
+
+        photoGalleryViewModel.galleryItemLiveData.observe(
+                viewLifecycleOwner,
+                Observer {
+                    galleryItems -> photoRecyclerView.adapter = PhotoAdapterList(galleryItems)
+                }
         )
     }
 
@@ -110,7 +147,28 @@ class PhotoGalleryFragment : Fragment() {
                     thumbnailDownloader.queueThumbnail(holder, galleryItem.url)
                 }
             }
+    }
 
+    private inner class PhotoAdapterList(private val galleryItems: List<GalleryItem>) : RecyclerView.Adapter<PhotoHolder>() {
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoHolder {
+            val view = layoutInflater.inflate(
+                    R.layout.list_item_gallery, parent, false
+            ) as ImageView
+            return PhotoHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: PhotoHolder, position: Int) {
+            val galleryItem = galleryItems[position]
+            val placeholder: Drawable = ContextCompat.getDrawable(
+                    requireContext(),
+                    R.drawable.bill_up_close
+            ) ?: ColorDrawable()
+            holder.bindDrawable(placeholder)
+
+            thumbnailDownloader.queueThumbnail(holder, galleryItem.url)
+        }
+
+        override fun getItemCount(): Int = galleryItems.size
     }
 
     companion object {

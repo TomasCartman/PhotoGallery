@@ -1,8 +1,6 @@
 package com.dashboarder.photogallery
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.*
 import androidx.paging.Config
 import androidx.paging.LivePagedListBuilder
 import androidx.paging.PagedList
@@ -17,6 +15,20 @@ class PhotoGalleryViewModel : ViewModel() {
 
     private val dataSourceFactory = GalleryItemDataSourceFactory()
     val galleryItemList = dataSourceFactory.toLiveData(myPagingConfig)
+    val galleryItemLiveData: LiveData<List<GalleryItem>>
+    private val flickrFetchr = FlickrFetchr()
+    private val mutableSearchTerm = MutableLiveData<String>()
+
+    init {
+        mutableSearchTerm.value = "planet"
+        galleryItemLiveData = Transformations.switchMap(mutableSearchTerm) {
+            searchTerm -> flickrFetchr.searchPhotos(searchTerm)
+        }
+    }
+
+    fun fetchPhotos(query: String = "") {
+        mutableSearchTerm.value = query
+    }
 
     fun refresh(){
         dataSourceFactory.sourceLiveData.value?.invalidate()
