@@ -8,6 +8,7 @@ import android.os.Handler
 import android.util.Log
 import android.view.*
 import android.widget.ImageView
+import android.widget.ProgressBar
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -24,6 +25,7 @@ private const val TAG = "PhotoGalleryFragment"
 class PhotoGalleryFragment : Fragment() {
     private lateinit var photoGalleryViewModel: PhotoGalleryViewModel
     private lateinit var photoRecyclerView: RecyclerView
+    private lateinit var progressBar: ProgressBar
     private lateinit var thumbnailDownloader: ThumbnailDownloader<PhotoHolder>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +57,10 @@ class PhotoGalleryFragment : Fragment() {
                     Log.d(TAG, "QueryTextSubmit: $query")
                     if (query != null) {
                         photoGalleryViewModel.fetchPhotos(query)
+                        searchItem.collapseActionView()
+                        searchView.clearFocus()
+                        progressBar.visibility = View.VISIBLE
+                        photoRecyclerView.visibility = View.GONE
                     }
                     return true
                 }
@@ -64,6 +70,20 @@ class PhotoGalleryFragment : Fragment() {
                     return false
                 }
             })
+
+            setOnSearchClickListener {
+                searchView.setQuery(photoGalleryViewModel.searchTerm, false)
+            }
+        }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_item_clear -> {
+                photoGalleryViewModel.fetchPhotos("")
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 
@@ -75,6 +95,8 @@ class PhotoGalleryFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_photo_gallery, container, false)
         photoRecyclerView = view.findViewById(R.id.photo_recycler_view)
         photoRecyclerView.layoutManager = GridLayoutManager(context, 3)
+
+        progressBar = view.findViewById(R.id.progressBar)
 
         return view
     }
@@ -99,6 +121,8 @@ class PhotoGalleryFragment : Fragment() {
                 viewLifecycleOwner,
                 Observer {
                     galleryItems -> photoRecyclerView.adapter = PhotoAdapterList(galleryItems)
+                    progressBar.visibility = View.GONE
+                    photoRecyclerView.visibility = View.VISIBLE
                 }
         )
     }
